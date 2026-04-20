@@ -1,0 +1,130 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background: #0a0a1a;
+    color: #e0e0e0;
+    font-family: 'Menlo', 'Consolas', monospace;
+    padding: 20px;
+}
+
+#header {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+#header h1 {
+    font-size: 22px;
+    color: #ffffff;
+    margin-bottom: 6px;
+}
+
+#header p {
+    font-size: 13px;
+    color: #888;
+    max-width: 700px;
+    margin: 0 auto;
+}
+
+#controls {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.mode-btn {
+    padding: 10px 20px;
+    border: 1px solid #444;
+    background: #1a1a2e;
+    color: #ccc;
+    cursor: pointer;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 13px;
+    transition: all 0.2s;
+}
+
+.mode-btn:hover {
+    border-color: #666;
+    background: #252540;
+}
+
+.mode-btn.active {
+    border-color: #4CAF50;
+    color: #4CAF50;
+    background: #1a2e1a;
+}
+
+.reset-btn {
+    padding: 10px 20px;
+    border: 1px solid #555;
+    background: #2a1a1a;
+    color: #e88;
+    cursor: pointer;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 13px;
+}
+
+.reset-btn:hover {
+    background: #3a2020;
+}
+
+#main {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    align-items: flex-start;
+}
+
+#canvas {
+    border: 1px solid #333;
+    border-radius: 8px;
+    background: #0d0d20;
+}
+
+#stats {
+    width: 240px;
+    background: #111128;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 16px;
+}
+
+.stat {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid #222;
+}
+
+.stat:last-of-type {
+    border-bottom: none;
+}
+
+.stat-label {
+    color: #888;
+    font-size: 12px;
+}
+
+.stat-value {
+    font-size: 14px;
+    font-weight: bold;
+}
+
+#fiedler-history {
+    margin-top: 14px;
+    padding-top: 10px;
+    border-top: 1px solid #222;
+}
+
+#fiedler-chart {
+    width: 100%;
+    height: 100px;
+    border-radius: 4px;
+    background: #0a0a18;
+}

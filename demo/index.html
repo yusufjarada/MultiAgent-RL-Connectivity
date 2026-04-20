@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MARL Communication Demo</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="header">
+        <h1>Learned Communication with Connectivity Constraints</h1>
+        <p>Watch how agents communicate under different strategies. Green edges = active communication. The Fiedler value measures graph connectivity (0 = disconnected).</p>
+    </div>
+
+    <div id="controls">
+        <button id="btn-broadcast" class="mode-btn active" onclick="setMode('broadcast')">Broadcast (CommNet)</button>
+        <button id="btn-gated" class="mode-btn" onclick="setMode('gated')">Gated (IC3Net)</button>
+        <button id="btn-ours" class="mode-btn" onclick="setMode('ours')">Gated + Connectivity (Ours)</button>
+        <button id="btn-reset" class="reset-btn" onclick="resetAgents()">Reset</button>
+    </div>
+
+    <div id="main">
+        <canvas id="canvas" width="800" height="500"></canvas>
+        <div id="stats">
+            <div class="stat">
+                <span class="stat-label">Mode</span>
+                <span class="stat-value" id="stat-mode">Broadcast</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Fiedler Value</span>
+                <span class="stat-value" id="stat-fiedler">—</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Comm Rate</span>
+                <span class="stat-value" id="stat-comm">—</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Active Edges</span>
+                <span class="stat-value" id="stat-edges">—</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Coverage Score</span>
+                <span class="stat-value" id="stat-coverage">—</span>
+            </div>
+            <div id="fiedler-history">
+                <canvas id="fiedler-chart" width="220" height="100"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script src="main.js"></script>
+</body>
+</html>
