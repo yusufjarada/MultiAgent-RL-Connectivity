@@ -164,17 +164,17 @@ function getActiveEdges() {
     }
 
     if (mode === 'gated') {
-        // Each agent independently decides to transmit based on simulated "need"
-        // Agents far from their targets are more likely to gate off (they're busy)
-        // This is a toy heuristic — real IC3Net learns this
+        // Each agent independently decides to transmit based on a time-varying heuristic.
+        // Simulates a learned gate that opens/closes based on agent state.
+        // ~40-60% of edges active at any time — some agents go quiet, some stay loud.
         for (const [i, j] of allPairs) {
-            const di = distance(agents[i], targets[i % targets.length]);
-            const dj = distance(agents[j], targets[j % targets.length]);
-            // Agents that are close to target shut up (less need to coordinate)
-            // + some randomness
-            const probI = sigmoid((di - 100) / 50 + Math.sin(frame * 0.02 + i) * 0.5);
-            const probJ = sigmoid((dj - 100) / 50 + Math.sin(frame * 0.02 + j) * 0.5);
-            if (probI > 0.5 && probJ > 0.5) {
+            // Each agent has a personal oscillation (simulates learned gate behavior)
+            const gateI = sigmoid(Math.sin(frame * 0.015 + i * 1.7) * 2.0
+                                + Math.cos(frame * 0.008 + i * 3.1) * 1.5 + 0.5);
+            const gateJ = sigmoid(Math.sin(frame * 0.015 + j * 1.7) * 2.0
+                                + Math.cos(frame * 0.008 + j * 3.1) * 1.5 + 0.5);
+            // Edge exists if at least one agent wants to communicate
+            if (gateI > 0.5 || gateJ > 0.5) {
                 edges.push([i, j]);
             }
         }
@@ -185,11 +185,12 @@ function getActiveEdges() {
         // Same gating logic, but with connectivity repair
         const candidateEdges = [];
         for (const [i, j] of allPairs) {
-            const di = distance(agents[i], targets[i % targets.length]);
-            const dj = distance(agents[j], targets[j % targets.length]);
-            const probI = sigmoid((di - 100) / 50 + Math.sin(frame * 0.02 + i) * 0.5);
-            const probJ = sigmoid((dj - 100) / 50 + Math.sin(frame * 0.02 + j) * 0.5);
-            if (probI > 0.5 && probJ > 0.5) {
+            // Stricter gating: both agents must want to communicate (fewer edges)
+            const gateI = sigmoid(Math.sin(frame * 0.015 + i * 1.7) * 2.0
+                                + Math.cos(frame * 0.008 + i * 3.1) * 1.5 + 0.5);
+            const gateJ = sigmoid(Math.sin(frame * 0.015 + j * 1.7) * 2.0
+                                + Math.cos(frame * 0.008 + j * 3.1) * 1.5 + 0.5);
+            if (gateI > 0.5 && gateJ > 0.5) {
                 candidateEdges.push([i, j]);
             }
         }
