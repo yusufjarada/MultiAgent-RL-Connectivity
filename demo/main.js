@@ -10,15 +10,54 @@ const fctx = fiedlerCanvas.getContext('2d');
 
 const W = canvas.width;
 const H = canvas.height;
-const N_AGENTS = 8;
 const AGENT_RADIUS = 14;
-const COMM_RANGE = 250;
 
+let COMM_RANGE = 250;
+let N_AGENTS = 8;
 let mode = 'broadcast';
 let agents = [];
 let targets = [];
 let fiedlerHistory = [];
 let frame = 0;
+let hoveredAgent = -1;
+let mouseX = 0, mouseY = 0;
+
+// --- Mouse tracking for hover ---
+
+canvas.addEventListener('mousemove', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    mouseX = e.clientX - rect.left;
+    mouseY = e.clientY - rect.top;
+
+    hoveredAgent = -1;
+    for (let i = 0; i < agents.length; i++) {
+        if (distance(agents[i], { x: mouseX, y: mouseY }) < AGENT_RADIUS + 5) {
+            hoveredAgent = i;
+            break;
+        }
+    }
+});
+
+canvas.addEventListener('mouseleave', () => {
+    hoveredAgent = -1;
+});
+
+// --- Slider controls ---
+
+function updateRange(val) {
+    COMM_RANGE = parseInt(val);
+    document.getElementById('range-value').textContent = val + ' px';
+    document.getElementById('info-range').textContent = val + ' px';
+    fiedlerHistory = [];
+}
+
+function updateAgentCount(val) {
+    N_AGENTS = parseInt(val);
+    document.getElementById('agent-value').textContent = val;
+    document.getElementById('info-agents').textContent = val;
+    initAgents();
+    fiedlerHistory = [];
+}
 
 // --- Agent initialization ---
 
@@ -26,20 +65,23 @@ function initAgents() {
     agents = [];
     for (let i = 0; i < N_AGENTS; i++) {
         agents.push({
-            x: 100 + Math.random() * (W - 200),
-            y: 100 + Math.random() * (H - 200),
+            x: 80 + Math.random() * (W - 160),
+            y: 80 + Math.random() * (H - 160),
             vx: (Math.random() - 0.5) * 1.5,
             vy: (Math.random() - 0.5) * 1.5,
             hue: (i / N_AGENTS) * 360,
-            gateOpen: true,
         });
     }
-    // Target positions agents should spread to cover
     targets = [];
+    // Keep ~4 agents per row, so 8→2x4, 12→3x4, 16→4x4, 20→4x5
+    const cols = Math.min(N_AGENTS, Math.ceil(N_AGENTS / Math.ceil(N_AGENTS / 4)));
+    const rows = Math.ceil(N_AGENTS / cols);
     for (let i = 0; i < N_AGENTS; i++) {
+        const col = i % cols;
+        const row = Math.floor(i / cols);
         targets.push({
-            x: 80 + (i % 4) * ((W - 160) / 3),
-            y: 80 + Math.floor(i / 4) * ((H - 160)),
+            x: 80 + col * ((W - 160) / Math.max(cols - 1, 1)),
+            y: 80 + row * ((H - 160) / Math.max(rows - 1, 1)),
         });
     }
 }
@@ -78,35 +120,21 @@ function computeLaplacian(adj) {
     return L;
 }
 
-// Power iteration to find smallest non-trivial eigenvalue (Fiedler value)
-// Uses inverse iteration with shift to find second-smallest eigenvalue
 function fiedlerValue(adj) {
     const n = adj.length;
+    if (n < 2) return 0;
     const L = computeLaplacian(adj);
-
-    // Simple approach: compute all eigenvalues of symmetric matrix
-    // using QR-like iteration (simplified for small n)
-    // For n=8 we can afford to just use the characteristic approach
-
-    // Actually, for a small matrix, let's use the power method on (L + shift*I)^-1
-    // to find the smallest eigenvalue of L that isn't 0.
-
-    // Even simpler: since n is small (8), use the Jacobi eigenvalue algorithm
     const eigenvalues = jacobiEigenvalues(L);
     eigenvalues.sort((a, b) => a - b);
-
-    // Second smallest (first is ~0)
     return Math.max(0, eigenvalues[1]);
 }
 
 function jacobiEigenvalues(matrix) {
     const n = matrix.length;
-    // Copy matrix
     const A = matrix.map(row => Float64Array.from(row));
     const maxIter = 100;
 
     for (let iter = 0; iter < maxIter; iter++) {
-        // Find largest off-diagonal element
         let maxVal = 0, p = 0, q = 1;
         for (let i = 0; i < n; i++) {
             for (let j = i + 1; j < n; j++) {
@@ -118,11 +146,9 @@ function jacobiEigenvalues(matrix) {
         }
         if (maxVal < 1e-10) break;
 
-        // Compute rotation
         const theta = 0.5 * Math.atan2(2 * A[p][q], A[p][p] - A[q][q]);
         const c = Math.cos(theta), s = Math.sin(theta);
 
-        // Apply rotation
         const newA = A.map(row => Float64Array.from(row));
         for (let i = 0; i < n; i++) {
             newA[i][p] = c * A[i][p] + s * A[i][q];
@@ -132,7 +158,6 @@ function jacobiEigenvalues(matrix) {
             A[p][j] = c * newA[p][j] + s * newA[q][j];
             A[q][j] = -s * newA[p][j] + c * newA[q][j];
         }
-        // Copy back symmetric parts
         for (let i = 0; i < n; i++) {
             for (let j = i + 1; j < n; j++) {
                 A[j][i] = A[i][j];
@@ -140,7 +165,7 @@ function jacobiEigenvalues(matrix) {
         }
     }
 
-    return Array.from({ length: n }, (_, i) => A[i][i]);
+    return Array.from({ length: matrix.length }, (_, i) => A[i][i]);
 }
 
 // --- Communication logic ---
@@ -149,7 +174,6 @@ function getActiveEdges() {
     const edges = [];
     const allPairs = [];
 
-    // Build all in-range pairs
     for (let i = 0; i < N_AGENTS; i++) {
         for (let j = i + 1; j < N_AGENTS; j++) {
             if (distance(agents[i], agents[j]) <= COMM_RANGE) {
@@ -159,21 +183,15 @@ function getActiveEdges() {
     }
 
     if (mode === 'broadcast') {
-        // All in-range edges active
         return allPairs;
     }
 
     if (mode === 'gated') {
-        // Each agent independently decides to transmit based on a time-varying heuristic.
-        // Simulates a learned gate that opens/closes based on agent state.
-        // ~40-60% of edges active at any time — some agents go quiet, some stay loud.
         for (const [i, j] of allPairs) {
-            // Each agent has a personal oscillation (simulates learned gate behavior)
             const gateI = sigmoid(Math.sin(frame * 0.015 + i * 1.7) * 2.0
                                 + Math.cos(frame * 0.008 + i * 3.1) * 1.5 + 0.5);
             const gateJ = sigmoid(Math.sin(frame * 0.015 + j * 1.7) * 2.0
                                 + Math.cos(frame * 0.008 + j * 3.1) * 1.5 + 0.5);
-            // Edge exists if at least one agent wants to communicate
             if (gateI > 0.5 || gateJ > 0.5) {
                 edges.push([i, j]);
             }
@@ -182,10 +200,8 @@ function getActiveEdges() {
     }
 
     if (mode === 'ours') {
-        // Same gating logic, but with connectivity repair
         const candidateEdges = [];
         for (const [i, j] of allPairs) {
-            // Stricter gating: both agents must want to communicate (fewer edges)
             const gateI = sigmoid(Math.sin(frame * 0.015 + i * 1.7) * 2.0
                                 + Math.cos(frame * 0.008 + i * 3.1) * 1.5 + 0.5);
             const gateJ = sigmoid(Math.sin(frame * 0.015 + j * 1.7) * 2.0
@@ -195,17 +211,14 @@ function getActiveEdges() {
             }
         }
 
-        // Check connectivity — if Fiedler value is too low, add back edges
         let currentEdges = [...candidateEdges];
         let adj = buildAdjacency(currentEdges);
         let fv = fiedlerValue(adj);
 
-        // Connectivity repair: add back dropped edges until Fiedler > threshold
         if (fv < 0.1) {
             const droppedEdges = allPairs.filter(
                 e => !candidateEdges.some(c => c[0] === e[0] && c[1] === e[1])
             );
-            // Sort dropped edges by how much they'd help connectivity (shortest first)
             droppedEdges.sort((a, b) =>
                 distance(agents[a[0]], agents[a[1]]) - distance(agents[b[0]], agents[b[1]])
             );
@@ -235,7 +248,6 @@ function updateAgents() {
         const a = agents[i];
         const t = targets[i % targets.length];
 
-        // Move toward target with some noise
         const dx = t.x - a.x;
         const dy = t.y - a.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
@@ -244,16 +256,13 @@ function updateAgents() {
             a.vx += (dx / dist) * 0.15 + (Math.random() - 0.5) * 0.3;
             a.vy += (dy / dist) * 0.15 + (Math.random() - 0.5) * 0.3;
         } else {
-            // Wander near target
             a.vx += (Math.random() - 0.5) * 0.2;
             a.vy += (Math.random() - 0.5) * 0.2;
         }
 
-        // Damping
         a.vx *= 0.95;
         a.vy *= 0.95;
 
-        // Clamp speed
         const speed = Math.sqrt(a.vx * a.vx + a.vy * a.vy);
         if (speed > 2.5) {
             a.vx = (a.vx / speed) * 2.5;
@@ -263,7 +272,6 @@ function updateAgents() {
         a.x += a.vx;
         a.y += a.vy;
 
-        // Bounce off walls
         if (a.x < AGENT_RADIUS) { a.x = AGENT_RADIUS; a.vx *= -0.5; }
         if (a.x > W - AGENT_RADIUS) { a.x = W - AGENT_RADIUS; a.vx *= -0.5; }
         if (a.y < AGENT_RADIUS) { a.y = AGENT_RADIUS; a.vy *= -0.5; }
@@ -278,12 +286,54 @@ function computeCoverage() {
     for (let i = 0; i < N_AGENTS; i++) {
         totalDist += distance(agents[i], targets[i % targets.length]);
     }
-    // Normalize: 0 = far, 1 = perfect coverage
     const maxDist = Math.sqrt(W * W + H * H) * N_AGENTS;
     return Math.max(0, 1 - totalDist / (maxDist * 0.3));
 }
 
 // --- Rendering ---
+
+function drawGrid() {
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+    ctx.lineWidth = 1;
+
+    const gridSize = 50;
+    for (let x = gridSize; x < W; x += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, H);
+        ctx.stroke();
+    }
+    for (let y = gridSize; y < H; y += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(W, y);
+        ctx.stroke();
+    }
+
+    // Scale markers along bottom
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.font = '9px Menlo';
+    ctx.textAlign = 'center';
+    for (let x = 100; x < W; x += 100) {
+        ctx.fillText(x + 'px', x, H - 5);
+    }
+}
+
+function drawCommRange(agent) {
+    ctx.beginPath();
+    ctx.arc(agent.x, agent.y, COMM_RANGE, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([6, 4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Label
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+    ctx.font = '9px Menlo';
+    ctx.textAlign = 'center';
+    ctx.fillText('range: ' + COMM_RANGE + 'px', agent.x, agent.y - COMM_RANGE - 6);
+}
 
 function drawEdge(a, b, alpha, color) {
     ctx.beginPath();
@@ -309,8 +359,10 @@ function drawAgent(a, index) {
     ctx.arc(a.x, a.y, AGENT_RADIUS, 0, Math.PI * 2);
     ctx.fillStyle = `hsl(${a.hue}, 60%, 50%)`;
     ctx.fill();
-    ctx.strokeStyle = `hsl(${a.hue}, 60%, 70%)`;
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = hoveredAgent === index
+        ? '#fff'
+        : `hsl(${a.hue}, 60%, 70%)`;
+    ctx.lineWidth = hoveredAgent === index ? 3 : 2;
     ctx.stroke();
 
     // Label
@@ -324,7 +376,7 @@ function drawAgent(a, index) {
 function drawTarget(t, index) {
     ctx.beginPath();
     ctx.arc(t.x, t.y, 6, 0, Math.PI * 2);
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
     ctx.lineWidth = 1;
     ctx.setLineDash([3, 3]);
     ctx.stroke();
@@ -352,7 +404,6 @@ function drawFiedlerChart() {
     fctx.stroke();
     fctx.setLineDash([]);
 
-    // Label
     fctx.fillStyle = 'rgba(255, 80, 80, 0.5)';
     fctx.font = '9px Menlo';
     fctx.fillText('disconnect', cw - 58, threshY - 4);
@@ -369,7 +420,6 @@ function drawFiedlerChart() {
     fctx.lineWidth = 1.5;
     fctx.stroke();
 
-    // Label
     fctx.fillStyle = '#888';
     fctx.font = '9px Menlo';
     fctx.fillText('Fiedler value over time', 4, 12);
@@ -378,17 +428,25 @@ function drawFiedlerChart() {
 function render() {
     ctx.clearRect(0, 0, W, H);
 
-    // Draw targets
+    // Grid
+    drawGrid();
+
+    // Targets
     for (let i = 0; i < targets.length; i++) {
         drawTarget(targets[i], i);
     }
 
-    // Get active edges and draw them
+    // Hovered agent comm range
+    if (hoveredAgent >= 0 && hoveredAgent < agents.length) {
+        drawCommRange(agents[hoveredAgent]);
+    }
+
+    // Active edges
     const activeEdges = getActiveEdges();
     const adj = buildAdjacency(activeEdges);
     const fv = fiedlerValue(adj);
     const totalPossible = N_AGENTS * (N_AGENTS - 1) / 2;
-    const commRate = activeEdges.length / totalPossible;
+    const commRate = totalPossible > 0 ? activeEdges.length / totalPossible : 0;
 
     for (const [i, j] of activeEdges) {
         const alpha = 0.4 + 0.3 * (1 - distance(agents[i], agents[j]) / COMM_RANGE);
@@ -398,12 +456,12 @@ function render() {
         drawEdge(agents[i], agents[j], alpha, color);
     }
 
-    // Draw agents
+    // Agents
     for (let i = 0; i < N_AGENTS; i++) {
         drawAgent(agents[i], i);
     }
 
-    // Update stats
+    // Stats
     const modeNames = { broadcast: 'Broadcast', gated: 'Gated', ours: 'Gated + Conn.' };
     document.getElementById('stat-mode').textContent = modeNames[mode];
     document.getElementById('stat-fiedler').textContent = fv.toFixed(3);
@@ -412,7 +470,7 @@ function render() {
     document.getElementById('stat-edges').textContent = activeEdges.length + ' / ' + totalPossible;
     document.getElementById('stat-coverage').textContent = computeCoverage().toFixed(2);
 
-    // Track Fiedler history (keep last 200)
+    // Fiedler history
     if (frame % 3 === 0) {
         fiedlerHistory.push(fv);
         if (fiedlerHistory.length > 200) fiedlerHistory.shift();

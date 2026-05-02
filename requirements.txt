@@ -8,3 +8,5 @@ networkx
 gymnasium
 pyyaml
 tensorboard
+pettingzoo
+mpe2

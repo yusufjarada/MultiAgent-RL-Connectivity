@@ -9,7 +9,7 @@
 <body>
     <div id="header">
         <h1>Learned Communication with Connectivity Constraints</h1>
-        <p>Watch how agents communicate under different strategies. Green edges = active communication. The Fiedler value measures graph connectivity (0 = disconnected).</p>
+        <p>Agents can only communicate within their radio range (shown as a dashed circle when you hover). Green edges = active links. Red edges = connectivity is at risk.</p>
     </div>
 
     <div id="controls">
@@ -20,8 +20,37 @@
     </div>
 
     <div id="main">
-        <canvas id="canvas" width="800" height="500"></canvas>
+        <div id="canvas-container">
+            <canvas id="canvas" width="800" height="500"></canvas>
+        </div>
         <div id="stats">
+            <div id="env-info">
+                <div class="info-title">Environment</div>
+                <div class="info-row">
+                    <span>Agents</span><span id="info-agents">8</span>
+                </div>
+                <div class="info-row">
+                    <span>Field</span><span>800 x 500 px</span>
+                </div>
+                <div class="info-row">
+                    <span>Comm Range</span><span id="info-range">250 px</span>
+                </div>
+            </div>
+
+            <div class="slider-group">
+                <label for="range-slider">Comm Range</label>
+                <input type="range" id="range-slider" min="80" max="600" value="250" oninput="updateRange(this.value)">
+                <span id="range-value">250 px</span>
+            </div>
+
+            <div class="slider-group">
+                <label for="agent-slider">Agents</label>
+                <input type="range" id="agent-slider" min="3" max="20" value="8" oninput="updateAgentCount(this.value)">
+                <span id="agent-value">8</span>
+            </div>
+
+            <div class="divider"></div>
+
             <div class="stat">
                 <span class="stat-label">Mode</span>
                 <span class="stat-value" id="stat-mode">Broadcast</span>
@@ -45,6 +74,69 @@
             <div id="fiedler-history">
                 <canvas id="fiedler-chart" width="220" height="100"></canvas>
             </div>
+
+            <div class="divider"></div>
+            <div id="legend">
+                <div class="legend-title">Legend</div>
+                <div class="legend-item"><span class="legend-line green"></span> Active comm link</div>
+                <div class="legend-item"><span class="legend-line red"></span> Low connectivity warning</div>
+                <div class="legend-item"><span class="legend-circle"></span> Agent (hover for range)</div>
+                <div class="legend-item"><span class="legend-target"></span> Target position</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="explainer">
+        <div class="section">
+            <h2>What you're looking at</h2>
+            <p>A team of agents is trying to spread out and cover a set of target positions. Each agent can only see its own local surroundings, so to coordinate they need to communicate. But communication isn't free — agents have a limited radio range, and in real systems (drone swarms, robot teams, autonomous vehicles) bandwidth is expensive. The question is: can agents learn to communicate efficiently without losing the ability to coordinate?</p>
+        </div>
+
+        <div class="section">
+            <h2>The three communication strategies</h2>
+
+            <div class="method">
+                <h3>Broadcast (CommNet)</h3>
+                <p>Every agent sends a message to every other agent within range, at every timestep. Simple and effective for small teams, but the number of messages grows quadratically — 10 agents means 45 links, 50 agents means 1,225. Most of these messages carry redundant information. This is the baseline: it works, but it doesn't scale.</p>
+            </div>
+
+            <div class="method">
+                <h3>Gated (IC3Net)</h3>
+                <p>Each agent has a learned gate that decides whether to transmit at each timestep. If an agent has nothing useful to say, it stays silent. This cuts down on communication, but there's a catch: if too many agents go quiet at the same time, the team can split into disconnected groups. When the Fiedler value (the number in the sidebar) drops to zero, at least one agent has no path to reach another — the team has lost coordination.</p>
+            </div>
+
+            <div class="method">
+                <h3>Gated + Connectivity Constraint (Ours)</h3>
+                <p>Same gating idea, but with a mathematical safety net. Before an edge is dropped, the system checks the algebraic connectivity of the communication graph (the Fiedler value). If removing an edge would disconnect the team or push connectivity too low, that edge stays open. Agents still learn to be efficient — they shut off unnecessary links — but the team is guaranteed to stay connected. This is the core contribution: combining learned communication efficiency with provable connectivity guarantees from graph theory.</p>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>What's the Fiedler value?</h2>
+            <p>It's the second-smallest eigenvalue of the graph Laplacian — a single number that measures how well-connected a network is. If it's zero, the graph is disconnected (some agents can't reach others through any chain of links). The higher it is, the more robust the connectivity. Our method keeps this value above a threshold while still allowing agents to reduce unnecessary communication.</p>
+        </div>
+
+        <div class="section">
+            <h2>Where this matters</h2>
+            <div class="use-cases">
+                <div class="use-case">
+                    <strong>Drone swarms</strong> — Search-and-rescue or surveillance missions where UAVs need to coordinate coverage while operating on limited radio bandwidth.
+                </div>
+                <div class="use-case">
+                    <strong>Warehouse robotics</strong> — Hundreds of robots picking and moving items need to share routing information without flooding the network.
+                </div>
+                <div class="use-case">
+                    <strong>Autonomous vehicles</strong> — Cars at an intersection sharing intent (turning, braking) with nearby vehicles under strict latency and bandwidth constraints.
+                </div>
+                <div class="use-case">
+                    <strong>Multi-robot exploration</strong> — Robots mapping an unknown environment need to stay coordinated even as they spread out and some links drop due to distance or obstacles.
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>About this demo</h2>
+            <p>The agents here are following a simple attraction rule toward their target positions — they aren't running a trained neural network. The gating behavior is simulated with oscillating functions to approximate what a learned gate would do. The actual training pipeline uses PyTorch with multi-agent reinforcement learning (MARL) on cooperative benchmarks. This demo exists to build intuition about why connectivity-constrained communication matters before looking at training results.</p>
         </div>
     </div>
 

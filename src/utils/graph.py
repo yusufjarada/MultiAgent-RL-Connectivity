@@ -7,7 +7,6 @@ and a differentiable connectivity penalty for use in training.
 
 import torch
 import numpy as np
-from scipy.sparse.linalg import eigsh
 from scipy.linalg import eigvalsh
 
 
