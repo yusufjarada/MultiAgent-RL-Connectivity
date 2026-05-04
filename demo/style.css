@@ -74,6 +74,64 @@ body {
     background: #3a2020;
 }
 
+.control-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.control-label {
+    font-size: 11px;
+    color: #666;
+    min-width: 60px;
+}
+
+.replay-btn {
+    padding: 10px 16px;
+    border: 1px solid #444;
+    background: #1a1a2e;
+    color: #ccc;
+    cursor: pointer;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 13px;
+    transition: all 0.2s;
+}
+
+.replay-btn:hover {
+    border-color: #FF9800;
+    background: #2e2a1a;
+}
+
+.replay-btn.active {
+    border-color: #FF9800;
+    color: #FF9800;
+    background: #2e2a1a;
+}
+
+.live-btn {
+    padding: 10px 16px;
+    border: 1px solid #444;
+    background: #1a1a2e;
+    color: #ccc;
+    cursor: pointer;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 13px;
+    transition: all 0.2s;
+}
+
+.live-btn:hover {
+    border-color: #00BCD4;
+    background: #1a2a2e;
+}
+
+.live-btn.active {
+    border-color: #00BCD4;
+    color: #00BCD4;
+    background: #1a2a2e;
+}
+
 #main {
     display: flex;
     justify-content: center;

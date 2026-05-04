@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cooperative Pursuit — Communication Demo</title>
+    <link rel="stylesheet" href="pursuit.css">
+</head>
+<body>
+    <div id="header">
+        <h1>Cooperative Multi-Target Pursuit</h1>
+        <p>Agents must split into groups, surround moving targets, and coordinate who goes after which target. A round is won when all targets are captured.</p>
+    </div>
+
+    <div id="controls">
+        <div class="control-row">
+            <button id="btn-none" class="mode-btn" onclick="setMode('none')">No Comm</button>
+            <button id="btn-broadcast" class="mode-btn active" onclick="setMode('broadcast')">CommNet</button>
+            <button id="btn-tarmac" class="mode-btn" onclick="setMode('tarmac')">TarMAC</button>
+            <button id="btn-gated" class="mode-btn" onclick="setMode('gated')">IC3Net</button>
+            <button id="btn-ours" class="mode-btn" onclick="setMode('ours')">Ours</button>
+            <button id="btn-reset" class="reset-btn" onclick="resetSim()">Reset</button>
+        </div>
+        <div class="control-row">
+            <div class="slider-group">
+                <label>Agents</label>
+                <input type="range" id="slider-agents" min="4" max="16" value="8" oninput="updateAgentCount(this.value)">
+                <span id="val-agents">8</span>
+            </div>
+            <div class="slider-group">
+                <label>Targets</label>
+                <input type="range" id="slider-targets" min="1" max="5" value="3" oninput="updateTargetCount(this.value)">
+                <span id="val-targets">3</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="main">
+        <canvas id="canvas" width="900" height="700"></canvas>
+        <div id="sidebar">
+            <div id="status-box">
+                <div class="status-row">
+                    <span class="status-label">Mode</span>
+                    <span class="status-value" id="stat-mode">Broadcast</span>
+                </div>
+                <div class="status-row">
+                    <span class="status-label">Fiedler Value</span>
+                    <span class="status-value" id="stat-fiedler">—</span>
+                </div>
+                <div class="status-row">
+                    <span class="status-label">Active Edges</span>
+                    <span class="status-value" id="stat-edges">—</span>
+                </div>
+                <div class="status-row">
+                    <span class="status-label">Comm Rate</span>
+                    <span class="status-value" id="stat-comm">—</span>
+                </div>
+                <div class="status-row">
+                    <span class="status-label">Progress</span>
+                    <span class="status-value" id="stat-encircle">—</span>
+                </div>
+                <div class="status-row">
+                    <span class="status-label">Rounds Won</span>
+                    <span class="status-value" id="stat-captures">0</span>
+                </div>
+                <div class="status-row">
+                    <span class="status-label">Time</span>
+                    <span class="status-value" id="stat-time">0s</span>
+                </div>
+            </div>
+
+            <div id="fiedler-box">
+                <canvas id="fiedler-chart" width="220" height="90"></canvas>
+            </div>
+
+            <div id="bandwidth-box">
+                <div class="bw-title">Bandwidth Usage</div>
+                <div class="bw-bar-row">
+                    <span class="bw-label">Messages sent</span>
+                    <span class="bw-value" id="bw-total">0</span>
+                </div>
+                <div class="bw-bar-container">
+                    <div class="bw-bar" id="bw-bar-fill"></div>
+                </div>
+                <div class="bw-bar-row">
+                    <span class="bw-label">Max possible</span>
+                    <span class="bw-value" id="bw-max">0</span>
+                </div>
+                <div class="bw-bar-row">
+                    <span class="bw-label">Savings</span>
+                    <span class="bw-value bw-savings" id="bw-savings">0%</span>
+                </div>
+            </div>
+
+            <div id="scoreboard">
+                <div class="score-title">Rounds Won</div>
+                <div class="score-row"><span class="score-dot none"></span> No Comm <span class="score-val" id="score-none">0</span></div>
+                <div class="score-row"><span class="score-dot broadcast"></span> CommNet <span class="score-val" id="score-broadcast">0</span></div>
+                <div class="score-row"><span class="score-dot tarmac"></span> TarMAC <span class="score-val" id="score-tarmac">0</span></div>
+                <div class="score-row"><span class="score-dot gated"></span> IC3Net <span class="score-val" id="score-gated">0</span></div>
+                <div class="score-row"><span class="score-dot ours"></span> Ours <span class="score-val" id="score-ours">0</span></div>
+            </div>
+
+            <div id="legend-box">
+                <div class="legend-title">Legend</div>
+                <div class="legend-row"><span class="legend-icon agent-icon"></span> Agent (ring = assigned target)</div>
+                <div class="legend-row"><span class="legend-icon target-icon"></span> Target (shrinks when surrounded)</div>
+                <div class="legend-row"><span class="legend-icon edge-green"></span> Active comm link</div>
+                <div class="legend-row"><span class="legend-icon edge-red"></span> Low connectivity warning</div>
+                <div class="legend-row"><span class="legend-icon question-icon">?</span> No target info (blind)</div>
+            </div>
+
+            <div id="explainer-mini">
+                <p><strong>What to watch for:</strong></p>
+                <p><em>No Comm</em> — Agents mob the nearest target. Others get ignored.</p>
+                <p><em>Gated</em> — Subgroups form but lose contact. Two groups chase the same target.</p>
+                <p><em>Ours</em> — Connectivity constraint keeps subgroups linked. Clean split, fast captures.</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="pursuit.js"></script>
+</body>
+</html>

@@ -299,9 +299,23 @@ python tests/test_comm_modules.py
 python tests/test_demo_logic.py
 ```
 
-## Interactive Demo
+## Interactive Demos
 
-Open `demo/index.html` in any browser. No server needed. Toggle between communication modes, adjust the number of agents and communication range with sliders, and hover over agents to see their radio range.
+Two browser demos are included — open either HTML file directly, no server needed.
+
+### Coverage Demo (`demo/index.html`)
+Agents spread out to cover target positions. Toggle between communication modes and adjust agent count / comm range with sliders. Hover over agents to see their radio range.
+
+### Multi-Target Pursuit Demo (`demo/pursuit.html`)
+The more interesting demo. N agents (4-16) must capture M moving targets (1-5) by surrounding them. This requires the agents to:
+1. **Discover** targets (limited sight range)
+2. **Share** target locations through the communication network
+3. **Split** into subgroups — decide who goes after which target
+4. **Surround** each target from multiple angles
+
+This is where communication mode matters most. With broadcast, agents coordinate a clean split. With gated communication, subgroups lose contact and accidentally double up on the same target. With our method, the connectivity constraint keeps the relay chain between subgroups alive, so the team splits efficiently.
+
+The demo tracks **cumulative bandwidth** — the total number of messages sent over time. Broadcast uses 100% of possible bandwidth. Our method achieves similar capture rates at 40-60% bandwidth.
 
 ---
 

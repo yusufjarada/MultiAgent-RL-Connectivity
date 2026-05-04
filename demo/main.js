@@ -22,6 +22,16 @@ let frame = 0;
 let hoveredAgent = -1;
 let mouseX = 0, mouseY = 0;
 
+// --- Live inference mode ---
+let liveMode = false;
+let liveMethod = null;
+let modelData = null;   // loaded models.json
+let liveAgents = [];    // agent positions for live mode
+let liveLandmarks = []; // landmark positions
+let liveEdges = [];     // current edges from model
+let liveCommRate = 1.0;
+let liveFiedler = 3.0;
+
 // --- Mouse tracking for hover ---
 
 canvas.addEventListener('mousemove', (e) => {
@@ -182,7 +192,7 @@ function getActiveEdges() {
         }
     }
 
-    if (mode === 'broadcast') {
+    if (mode === 'broadcast' || mode === 'tarmac_sim') {
         return allPairs;
     }
 
@@ -462,7 +472,7 @@ function render() {
     }
 
     // Stats
-    const modeNames = { broadcast: 'Broadcast', gated: 'Gated', ours: 'Gated + Conn.' };
+    const modeNames = { broadcast: 'Broadcast (CommNet)', gated: 'Gated (IC3Net)', tarmac_sim: 'TarMAC', ours: 'Gated + Conn. (Ours)' };
     document.getElementById('stat-mode').textContent = modeNames[mode];
     document.getElementById('stat-fiedler').textContent = fv.toFixed(3);
     document.getElementById('stat-fiedler').style.color = fv < 0.1 ? '#e55' : '#4CAF50';
@@ -480,18 +490,244 @@ function render() {
 
 // --- Mode switching ---
 
+function clearAllButtons() {
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.live-btn').forEach(b => b.classList.remove('active'));
+}
+
 function setMode(m) {
+    liveMode = false;
     mode = m;
     fiedlerHistory = [];
-    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById('btn-' + m).classList.add('active');
+    clearAllButtons();
+    const btn = document.getElementById('btn-' + m) || document.getElementById('btn-' + m.replace('_', '-'));
+    if (btn) btn.classList.add('active');
+    document.getElementById('range-slider').disabled = false;
+    document.getElementById('agent-slider').disabled = false;
+}
+
+// --- Live inference mode ---
+
+// Load model weights on startup
+fetch('models.json')
+    .then(r => r.json())
+    .then(data => { modelData = data; console.log('Models loaded:', Object.keys(data)); })
+    .catch(() => { console.log('No models.json found — live inference disabled'); });
+
+function initLiveEnv(nAgents) {
+    // Random positions for agents and landmarks in [-1, 1]
+    liveAgents = [];
+    liveLandmarks = [];
+    for (let i = 0; i < nAgents; i++) {
+        liveAgents.push({
+            px: (Math.random() - 0.5) * 2,
+            py: (Math.random() - 0.5) * 2,
+            vx: 0, vy: 0,
+        });
+        liveLandmarks.push({
+            px: (Math.random() - 0.5) * 1.6,
+            py: (Math.random() - 0.5) * 1.6,
+        });
+    }
+}
+
+function buildObservation(agentIdx) {
+    // Mimic MPE simple_spread observation:
+    // [self_vel(2), self_pos(2), landmark_rel_pos(N*2), other_agents_rel_pos((N-1)*2)]
+    const a = liveAgents[agentIdx];
+    const obs = [];
+    // Self velocity
+    obs.push(a.vx, a.vy);
+    // Self position
+    obs.push(a.px, a.py);
+    // Relative landmark positions
+    for (const lm of liveLandmarks) {
+        obs.push(lm.px - a.px, lm.py - a.py);
+    }
+    // Relative other agent positions
+    for (let j = 0; j < liveAgents.length; j++) {
+        if (j === agentIdx) continue;
+        obs.push(liveAgents[j].px - a.px, liveAgents[j].py - a.py);
+    }
+    return obs;
+}
+
+function applyAction(agentIdx, action) {
+    // Actions: 0=noop, 1=left, 2=right, 3=down, 4=up
+    const force = 0.1;
+    const a = liveAgents[agentIdx];
+    if (action === 1) a.vx -= force;
+    if (action === 2) a.vx += force;
+    if (action === 3) a.vy -= force;
+    if (action === 4) a.vy += force;
+
+    // Damping
+    a.vx *= 0.9;
+    a.vy *= 0.9;
+
+    // Update position
+    a.px += a.vx * 0.1;
+    a.py += a.vy * 0.1;
+
+    // Clamp to bounds
+    a.px = Math.max(-1.5, Math.min(1.5, a.px));
+    a.py = Math.max(-1.5, Math.min(1.5, a.py));
+}
+
+function startLive(method) {
+    if (!modelData || !modelData[method]) {
+        console.log('No model data for ' + method);
+        return;
+    }
+
+    liveMode = true;
+    liveMethod = method;
+    fiedlerHistory = [];
+
+    const nAgents = modelData[method].n_agents;
+    N_AGENTS = nAgents;
+    initLiveEnv(nAgents);
+
+    clearAllButtons();
+    const btn = document.getElementById('btn-live-' + method);
+    if (btn) btn.classList.add('active');
+
+    document.getElementById('range-slider').disabled = true;
+    document.getElementById('agent-slider').disabled = true;
+    document.getElementById('agent-value').textContent = nAgents;
+    document.getElementById('info-agents').textContent = nAgents;
+}
+
+function mapLiveToCanvas(px, py) {
+    const cx = W / 2;
+    const cy = H / 2;
+    const scale = Math.min(W, H) * 0.3;
+    return { x: cx + px * scale, y: cy + py * scale };
+}
+
+function updateAndRenderLive() {
+    if (!modelData || !modelData[liveMethod]) return;
+
+    const nAgents = liveAgents.length;
+    const params = modelData[liveMethod].params;
+
+    // Build observation matrix (N, obs_dim)
+    const obsRows = [];
+    for (let i = 0; i < nAgents; i++) obsRows.push(buildObservation(i));
+    const obsDim = obsRows[0].length;
+    const obsFlat = new Float32Array(nAgents * obsDim);
+    for (let i = 0; i < nAgents; i++)
+        for (let d = 0; d < obsDim; d++)
+            obsFlat[i * obsDim + d] = obsRows[i][d];
+    const obsTensor = { data: obsFlat, shape: [nAgents, obsDim] };
+
+    // Run model (every 4 frames for performance)
+    if (frame % 4 === 0) {
+        const result = runModel(liveMethod, obsTensor, params, nAgents);
+        if (result) {
+            liveEdges = result.edges;
+            liveCommRate = result.commRate;
+
+            // Sample actions and apply
+            for (let i = 0; i < nAgents; i++) {
+                const action = sampleAction(result.logits, i);
+                applyAction(i, action);
+            }
+
+            // Compute Fiedler
+            const adj = buildAdjacency(liveEdges);
+            liveFiedler = fiedlerValue(adj);
+        }
+    }
+
+    // --- Render ---
+    ctx.clearRect(0, 0, W, H);
+    drawGrid();
+
+    // Landmarks
+    for (let i = 0; i < liveLandmarks.length; i++) {
+        const p = mapLiveToCanvas(liveLandmarks[i].px, liveLandmarks[i].py);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 10, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 4]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+        ctx.font = '10px Menlo';
+        ctx.textAlign = 'center';
+        ctx.fillText('L' + i, p.x, p.y + 20);
+    }
+
+    // Edges
+    const agentCanvasPos = liveAgents.map(a => mapLiveToCanvas(a.px, a.py));
+    for (const [i, j] of liveEdges) {
+        const color = liveFiedler < 0.1
+            ? 'rgba(255, 80, 80, 0.5)'
+            : 'rgba(80, 200, 100, 0.5)';
+        drawEdge(agentCanvasPos[i], agentCanvasPos[j], 0.5, color);
+    }
+
+    // Agents
+    for (let i = 0; i < nAgents; i++) {
+        const p = agentCanvasPos[i];
+        const hue = (i / nAgents) * 360;
+
+        const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, AGENT_RADIUS * 2);
+        gradient.addColorStop(0, `hsla(${hue}, 70%, 60%, 0.3)`);
+        gradient.addColorStop(1, `hsla(${hue}, 70%, 60%, 0)`);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, AGENT_RADIUS * 2, 0, Math.PI * 2);
+        ctx.fillStyle = gradient;
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, AGENT_RADIUS, 0, Math.PI * 2);
+        ctx.fillStyle = `hsl(${hue}, 60%, 50%)`;
+        ctx.fill();
+        ctx.strokeStyle = `hsl(${hue}, 60%, 70%)`;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.fillStyle = '#fff';
+        ctx.font = '11px Menlo';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(i, p.x, p.y);
+    }
+
+    // Stats
+    const methodNames = {
+        commnet: 'CommNet (live)',
+        ic3net: 'IC3Net (live)',
+        tarmac: 'TarMAC (live)',
+        gated_attn: 'Ours (live)',
+    };
+    const totalPossible = nAgents * (nAgents - 1) / 2;
+    document.getElementById('stat-mode').textContent = methodNames[liveMethod] || liveMethod;
+    document.getElementById('stat-fiedler').textContent = liveFiedler.toFixed(3);
+    document.getElementById('stat-fiedler').style.color = liveFiedler < 0.1 ? '#e55' : '#4CAF50';
+    document.getElementById('stat-comm').textContent = (liveCommRate * 100).toFixed(0) + '%';
+    document.getElementById('stat-edges').textContent = liveEdges.length + ' / ' + totalPossible;
+    document.getElementById('stat-coverage').textContent = '—';
+
+    if (frame % 3 === 0) {
+        fiedlerHistory.push(liveFiedler);
+        if (fiedlerHistory.length > 200) fiedlerHistory.shift();
+    }
+    drawFiedlerChart();
 }
 
 // --- Main loop ---
 
 function loop() {
-    updateAgents();
-    render();
+    if (liveMode) {
+        updateAndRenderLive();
+    } else {
+        updateAgents();
+        render();
+    }
     frame++;
     requestAnimationFrame(loop);
 }

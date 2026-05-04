@@ -9,3 +9,8 @@ build/
 .ipynb_checkpoints/
 tensorboard_logs/
 .cursor/
+*.aux
+*.bbl
+*.blg
+*.log
+*.out

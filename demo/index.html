@@ -13,10 +13,21 @@
     </div>
 
     <div id="controls">
-        <button id="btn-broadcast" class="mode-btn active" onclick="setMode('broadcast')">Broadcast (CommNet)</button>
-        <button id="btn-gated" class="mode-btn" onclick="setMode('gated')">Gated (IC3Net)</button>
-        <button id="btn-ours" class="mode-btn" onclick="setMode('ours')">Gated + Connectivity (Ours)</button>
-        <button id="btn-reset" class="reset-btn" onclick="resetAgents()">Reset</button>
+        <div class="control-group">
+            <span class="control-label">Simulation:</span>
+            <button id="btn-broadcast" class="mode-btn active" onclick="setMode('broadcast')">CommNet</button>
+            <button id="btn-gated" class="mode-btn" onclick="setMode('gated')">IC3Net</button>
+            <button id="btn-tarmac-sim" class="mode-btn" onclick="setMode('tarmac_sim')">TarMAC</button>
+            <button id="btn-ours" class="mode-btn" onclick="setMode('ours')">Ours</button>
+            <button id="btn-reset" class="reset-btn" onclick="resetAgents()">Reset</button>
+        </div>
+        <div class="control-group">
+            <span class="control-label">Trained (live):</span>
+            <button id="btn-live-commnet" class="live-btn" onclick="startLive('commnet')">CommNet</button>
+            <button id="btn-live-ic3net" class="live-btn" onclick="startLive('ic3net')">IC3Net</button>
+            <button id="btn-live-tarmac" class="live-btn" onclick="startLive('tarmac')">TarMAC</button>
+            <button id="btn-live-gated_attn" class="live-btn" onclick="startLive('gated_attn')">Ours</button>
+        </div>
     </div>
 
     <div id="main">
@@ -140,6 +151,7 @@
         </div>
     </div>
 
+    <script src="nn.js"></script>
     <script src="main.js"></script>
 </body>
 </html>

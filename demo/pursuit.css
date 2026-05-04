@@ -1,0 +1,105 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    background: #0a0a1a;
+    color: #e0e0e0;
+    font-family: 'Menlo', 'Consolas', monospace;
+    padding: 20px;
+}
+
+#header { text-align: center; margin-bottom: 14px; }
+#header h1 { font-size: 22px; color: #fff; margin-bottom: 4px; }
+#header p { font-size: 12px; color: #888; max-width: 750px; margin: 0 auto; }
+
+#controls {
+    display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 14px;
+}
+
+.control-row {
+    display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; align-items: center;
+}
+
+.mode-btn {
+    padding: 9px 16px; border: 1px solid #444; background: #1a1a2e;
+    color: #ccc; cursor: pointer; border-radius: 6px;
+    font-family: inherit; font-size: 12px; transition: all 0.2s;
+}
+.mode-btn:hover { border-color: #666; background: #252540; }
+.mode-btn.active { border-color: #4CAF50; color: #4CAF50; background: #1a2e1a; }
+
+.reset-btn {
+    padding: 9px 16px; border: 1px solid #555; background: #2a1a1a;
+    color: #e88; cursor: pointer; border-radius: 6px;
+    font-family: inherit; font-size: 12px;
+}
+.reset-btn:hover { background: #3a2020; }
+
+.slider-group {
+    display: flex; align-items: center; gap: 6px;
+}
+.slider-group label {
+    font-size: 11px; color: #888; min-width: 50px;
+}
+.slider-group input[type="range"] {
+    width: 100px; accent-color: #4CAF50;
+}
+.slider-group span {
+    font-size: 12px; color: #4CAF50; font-weight: bold; min-width: 20px;
+}
+
+#main { display: flex; justify-content: center; gap: 14px; align-items: flex-start; }
+
+#canvas { border: 1px solid #333; border-radius: 8px; background: #0d0d20; }
+
+#sidebar { width: 240px; display: flex; flex-direction: column; gap: 10px; }
+
+#status-box, #fiedler-box, #scoreboard, #legend-box, #explainer-mini {
+    background: #111128; border: 1px solid #2a2a40; border-radius: 8px; padding: 12px;
+}
+
+.status-row {
+    display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #1a1a30;
+}
+.status-row:last-child { border-bottom: none; }
+.status-label { color: #777; font-size: 11px; }
+.status-value { font-size: 12px; font-weight: bold; }
+
+#fiedler-chart { width: 100%; height: 90px; border-radius: 4px; background: #0a0a18; }
+
+#bandwidth-box {
+    background: #111128; border: 1px solid #2a2a40; border-radius: 8px; padding: 12px;
+}
+.bw-title { font-size: 10px; color: #555; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+.bw-bar-row { display: flex; justify-content: space-between; padding: 2px 0; }
+.bw-label { font-size: 10px; color: #777; }
+.bw-value { font-size: 11px; color: #ccc; font-weight: bold; }
+.bw-savings { color: #4CAF50; font-size: 13px; }
+.bw-bar-container {
+    height: 8px; background: #1a1a30; border-radius: 4px; margin: 6px 0; overflow: hidden;
+}
+.bw-bar {
+    height: 100%; border-radius: 4px; transition: width 0.3s; background: #4CAF50;
+}
+
+.score-title, .legend-title { font-size: 10px; color: #555; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+.score-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 11px; color: #aaa; }
+.score-val { margin-left: auto; font-weight: bold; color: #ddd; font-size: 13px; }
+.score-dot { width: 10px; height: 10px; border-radius: 50%; }
+.score-dot.none { background: #555; }
+.score-dot.broadcast { background: #2196F3; }
+.score-dot.tarmac { background: #9C27B0; }
+.score-dot.gated { background: #FF9800; }
+.score-dot.ours { background: #4CAF50; }
+
+.legend-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 10px; color: #888; }
+.legend-icon { width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.agent-icon { width: 14px; height: 14px; border-radius: 50%; background: #5588cc; border: 2px solid #ff9900; }
+.target-icon { width: 12px; height: 12px; border-radius: 50%; background: #ff4444; box-shadow: 0 0 6px rgba(255,68,68,0.5); }
+.edge-green { width: 18px; height: 2px; background: #50c864; border-radius: 1px; }
+.edge-red { width: 18px; height: 2px; background: #e55; border-radius: 1px; }
+.question-icon { color: #ffcc33; font-size: 13px; font-weight: bold; }
+
+#explainer-mini p { font-size: 10px; color: #888; line-height: 1.6; margin-bottom: 5px; }
+#explainer-mini p:last-child { margin-bottom: 0; }
+#explainer-mini strong { color: #bbb; }
+#explainer-mini em { color: #aaa; font-style: normal; font-weight: bold; }
