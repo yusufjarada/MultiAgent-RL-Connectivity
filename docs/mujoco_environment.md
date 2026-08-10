@@ -47,6 +47,10 @@ cyan indicates a connected team graph, while amber indicates that the current
 physical graph is fragmented. Console telemetry reports the same state together
 with coverage, link utilization, altitude, and mean target distance.
 
+The interactive viewer initializes a centered free camera whose distance scales
+with the configured arena and flight height. The full flight volume is visible
+at startup; normal MuJoCo mouse controls can still orbit, pan, and zoom it.
+
 Train it with:
 
 ```bash

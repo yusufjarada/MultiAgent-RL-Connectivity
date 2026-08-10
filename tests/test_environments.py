@@ -211,3 +211,18 @@ def test_drone_rgb_render_contains_scene():
         assert frame.max() > frame.min()
     finally:
         env.close()
+
+
+def test_drone_interactive_camera_frames_flight_volume():
+    env = MujocoDroneEnv(n_agents=3, arena_size=5.0, flight_height=3.0)
+    try:
+        camera = mujoco.MjvCamera()
+        env.configure_viewer_camera(camera)
+
+        assert camera.type == mujoco.mjtCamera.mjCAMERA_FREE
+        assert np.allclose(camera.lookat, (0.0, 0.0, 1.35))
+        assert camera.distance == pytest.approx(14.5)
+        assert camera.azimuth == pytest.approx(135.0)
+        assert camera.elevation == pytest.approx(-30.0)
+    finally:
+        env.close()

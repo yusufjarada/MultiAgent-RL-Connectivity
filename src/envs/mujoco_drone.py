@@ -531,11 +531,20 @@ class MujocoDroneEnv:
             from mujoco import viewer
 
             self._viewer = viewer.launch_passive(self.model, self.data)
+            self.configure_viewer_camera(self._viewer.cam)
         with self._viewer.lock():
             self._viewer.user_scn.ngeom = 0
             self._add_connectivity_geoms(self._viewer.user_scn)
         self._viewer.sync()
         return None
+
+    def configure_viewer_camera(self, camera) -> None:
+        """Frame the complete flight volume in an interactive free camera."""
+        camera.type = mujoco.mjtCamera.mjCAMERA_FREE
+        camera.lookat[:] = (0.0, 0.0, 0.45 * self.flight_height)
+        camera.distance = 2.9 * max(self.arena_size, self.flight_height)
+        camera.azimuth = 135.0
+        camera.elevation = -30.0
 
     def close(self) -> None:
         """Release renderer and interactive viewer resources."""
