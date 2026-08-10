@@ -260,8 +260,8 @@ If the ratio drifts too far from 1.0, the clip kicks in and the gradient stops p
 git clone https://github.com/yusufjarada/MultiAgent-RL-Connectivity.git
 cd MultiAgent-RL-Connectivity
 
-# Create environment
-python3 -m venv venv
+# Create environment (Python 3.10 or newer)
+python3.12 -m venv venv
 source venv/bin/activate
 
 # Install dependencies
@@ -271,32 +271,42 @@ pip install -r requirements.txt
 ## Run Training
 
 ```bash
-# Train a single method
-python scripts/train.py --method commnet --timesteps 200000 --seeds 0 1 2
+# Train a single method in the MuJoCo environment with five agents
+python scripts/train.py --env mujoco --agents 5 --method commnet \
+  --timesteps 200000 --seeds 0 1 2
 
-# Train all methods (takes ~30 min)
-python scripts/train.py --method all --timesteps 200000 --seeds 0 1 2
+# Retain MPE as a regression benchmark
+python scripts/train.py --env mpe --method all \
+  --timesteps 200000 --seeds 0 1 2
 
 # Options
 #   --method:   commnet | ic3net | tarmac | gated_attn | all
+#   --env:      mpe | mujoco
 #   --agents:   number of agents (default: 3)
 #   --timesteps: total environment steps (default: 200000)
 #   --seeds:    random seeds for reproducibility
+#   --max-steps: episode horizon (environment-specific default)
+#   --rollout-steps: environment steps per PPO update
 ```
+
+Run artifacts are namespaced as
+`results/<environment>/<N>_agents/<method>_seed<seed>.{json,pt}`. Checkpoints
+include actor, centralized critic, optimizer states, and run metadata.
 
 ## Generate Figures
 
 ```bash
-python scripts/plot_results.py
+python scripts/plot_results.py --env mujoco --agents 5
 # Outputs: paper/figures/rewards.png, comm_rates.png, pareto.png, connectivity.png
 ```
+
+The environment and team-size filters prevent accidental plots that mix
+incompatible experiment configurations.
 
 ## Run Tests
 
 ```bash
-python tests/test_graph.py
-python tests/test_comm_modules.py
-python tests/test_demo_logic.py
+python -m pytest
 ```
 
 ## Interactive Demos
@@ -330,9 +340,11 @@ marl-comms/
 │   │   ├── tarmac.py        # Baseline: attention-based communication
 │   │   └── gated_attn.py    # OURS: pairwise gating + attention + Fiedler constraint
 │   ├── envs/
-│   │   └── mpe_wrapper.py   # MPE simple_spread environment wrapper
+│   │   ├── mpe_wrapper.py          # MPE regression environment
+│   │   └── mujoco_point_mass.py    # Physics-backed coverage environment
 │   ├── training/
-│   │   └── ppo_trainer.py    # PPO trainer (used for all experiments)
+│   │   ├── checkpoint.py            # Versioned atomic checkpoints
+│   │   └── ppo_trainer.py           # Variable-team PPO trainer
 │   └── utils/
 │       └── graph.py          # Graph Laplacian, Fiedler value, connectivity penalty
 ├── scripts/
@@ -355,7 +367,16 @@ marl-comms/
 
 ---
 
-## Environment: MPE Simple Spread
+## Environment: MuJoCo Point-Mass Coverage
+
+The primary development environment is a configurable MuJoCo scene with `N`
+planar point-mass robots and `N` landmarks. It adds physical dynamics,
+collisions, randomized layouts, 3D rendering, fixed-width local observations,
+and a distance-limited physical communication graph. See the
+[environment specification](docs/mujoco_environment.md) for the complete
+observation, action, reward, and graph definitions.
+
+## Regression Environment: MPE Simple Spread
 
 We use the [Multi-Agent Particle Environment](https://pettingzoo.farama.org/environments/mpe/) (MPE) `simple_spread` task:
 

@@ -6,15 +6,28 @@ it broadcasts its message. When the gate is off, the agent stays silent.
 Uses a sigmoid gate during training (differentiable) and hard threshold at test time.
 """
 
+from typing import Optional
+
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+
+from src.comm.common import validate_observations
 
 
 class IC3Net(nn.Module):
-    def __init__(self, obs_dim: int, hidden_dim: int, msg_dim: int, act_dim: int,
-                 n_agents: int):
+    def __init__(
+        self,
+        obs_dim: int,
+        hidden_dim: int,
+        msg_dim: int,
+        act_dim: int,
+        n_agents: Optional[int] = None,
+    ):
         super().__init__()
+        if n_agents is not None and n_agents < 2:
+            raise ValueError("n_agents must be at least 2")
+
+        self.obs_dim = obs_dim
         self.n_agents = n_agents
         self.hidden_dim = hidden_dim
 
@@ -42,7 +55,9 @@ class IC3Net(nn.Module):
         # Action head
         self.action_head = nn.Linear(hidden_dim, act_dim)
 
-    def forward(self, obs: torch.Tensor, hard_gate: bool = False) -> tuple[torch.Tensor, dict]:
+    def forward(
+        self, obs: torch.Tensor, hard_gate: bool = False
+    ) -> tuple[torch.Tensor, dict]:
         """
         Args:
             obs: (batch, n_agents, obs_dim)
@@ -52,7 +67,7 @@ class IC3Net(nn.Module):
             action_logits: (batch, n_agents, act_dim)
             info: dict with gates, messages, comm stats
         """
-        B, N, _ = obs.shape
+        _, N = validate_observations(obs, self.obs_dim)
         h = self.encoder(obs)  # (B, N, hidden_dim)
 
         # Compute gate probabilities
@@ -70,8 +85,12 @@ class IC3Net(nn.Module):
         gated_messages = messages * gates.unsqueeze(-1)  # zero out silenced agents
 
         # Mean-pool received messages (from agents that are transmitting)
-        msg_sum = gated_messages.sum(dim=1, keepdim=True) - gated_messages  # (B, N, msg_dim)
-        active_count = gates.sum(dim=1, keepdim=True) - gates  # how many others are sending
+        msg_sum = (
+            gated_messages.sum(dim=1, keepdim=True) - gated_messages
+        )  # (B, N, msg_dim)
+        active_count = (
+            gates.sum(dim=1, keepdim=True) - gates
+        )  # how many others are sending
         active_count = active_count.unsqueeze(-1).clamp(min=1.0)
         msg_mean = msg_sum / active_count
 

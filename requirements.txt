@@ -10,3 +10,5 @@ pyyaml
 tensorboard
 pettingzoo
 mpe2
+mujoco>=3.2,<4
+pytest>=8,<9

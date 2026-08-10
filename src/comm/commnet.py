@@ -6,14 +6,31 @@ at every timestep. Each agent averages all received messages and concatenates
 with its own hidden state before acting.
 """
 
+from typing import Optional
+
 import torch
 import torch.nn as nn
 
+from src.comm.common import validate_observations
+
 
 class CommNet(nn.Module):
-    def __init__(self, obs_dim: int, hidden_dim: int, msg_dim: int, act_dim: int,
-                 n_agents: int, n_comm_rounds: int = 1):
+    def __init__(
+        self,
+        obs_dim: int,
+        hidden_dim: int,
+        msg_dim: int,
+        act_dim: int,
+        n_agents: Optional[int] = None,
+        n_comm_rounds: int = 1,
+    ):
         super().__init__()
+        if n_agents is not None and n_agents < 2:
+            raise ValueError("n_agents must be at least 2")
+        if n_comm_rounds < 1:
+            raise ValueError("n_comm_rounds must be at least 1")
+
+        self.obs_dim = obs_dim
         self.n_agents = n_agents
         self.n_comm_rounds = n_comm_rounds
         self.hidden_dim = hidden_dim
@@ -37,7 +54,9 @@ class CommNet(nn.Module):
         # Action head
         self.action_head = nn.Linear(hidden_dim, act_dim)
 
-    def forward(self, obs: torch.Tensor) -> tuple[torch.Tensor, dict]:
+    def forward(
+        self, obs: torch.Tensor, hard_gate: bool = False
+    ) -> tuple[torch.Tensor, dict]:
         """
         Args:
             obs: (batch, n_agents, obs_dim)
@@ -46,7 +65,7 @@ class CommNet(nn.Module):
             action_logits: (batch, n_agents, act_dim)
             info: dict with messages and comm stats
         """
-        B, N, _ = obs.shape
+        _, N = validate_observations(obs, self.obs_dim)
         h = self.encoder(obs)  # (B, N, hidden_dim)
 
         for _ in range(self.n_comm_rounds):

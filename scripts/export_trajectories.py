@@ -5,36 +5,22 @@ Saves agent positions, gate states, Fiedler values, and rewards
 per timestep as JSON that main.js can replay.
 """
 
-import sys
 import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+import sys
 
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+import argparse
 import json
-import inspect
-import torch
+from pathlib import Path
+
 import numpy as np
+import torch
 
+from src.comm.factory import build_comm_module
 from src.envs.mpe_wrapper import MPEWrapper
-from src.comm.commnet import CommNet
-from src.comm.ic3net import IC3Net
-from src.comm.tarmac import TarMAC
-from src.comm.gated_attn import GatedAttnComm
-from src.utils.graph import fiedler_value, build_adjacency_from_gates
-
-
-def build_comm_module(method, obs_dim, act_dim, n_agents,
-                      hidden_dim=64, msg_dim=32):
-    if method == 'commnet':
-        return CommNet(obs_dim, hidden_dim, msg_dim, act_dim, n_agents)
-    elif method == 'ic3net':
-        return IC3Net(obs_dim, hidden_dim, msg_dim, act_dim, n_agents)
-    elif method == 'tarmac':
-        return TarMAC(obs_dim, hidden_dim, msg_dim, act_dim, n_agents, n_heads=4)
-    elif method == 'gated_attn':
-        return GatedAttnComm(obs_dim, hidden_dim, msg_dim, act_dim, n_agents,
-                             n_heads=4, connectivity_weight=0.5)
-    else:
-        raise ValueError(f"Unknown method: {method}")
+from src.training.checkpoint import load_actor_state
+from src.utils.graph import fiedler_value
 
 
 def record_episode(comm, env, method):
@@ -50,11 +36,7 @@ def record_episode(comm, env, method):
         obs_batch = obs.unsqueeze(0)
 
         with torch.no_grad():
-            sig = inspect.signature(comm.forward)
-            if 'hard_gate' in sig.parameters:
-                logits, info = comm(obs_batch, hard_gate=True)
-            else:
-                logits, info = comm(obs_batch)
+            logits, info = comm(obs_batch, hard_gate=True)
 
         logits = logits.squeeze(0)
         dist = torch.distributions.Categorical(logits=logits)
@@ -72,19 +54,19 @@ def record_episode(comm, env, method):
         # Build edge list and compute Fiedler
         n = env.n_agents
         edges = []
-        if method == 'commnet' or method == 'tarmac':
+        if method == "commnet" or method == "tarmac":
             # Broadcast: all pairs connected
             for i in range(n):
                 for j in range(i + 1, n):
                     edges.append([i, j])
-        elif method == 'ic3net':
-            gates = info['gates'].squeeze(0).cpu().numpy()  # (n,)
+        elif method == "ic3net":
+            gates = info["gates"].squeeze(0).cpu().numpy()  # (n,)
             for i in range(n):
                 for j in range(i + 1, n):
                     if gates[i] > 0.5 or gates[j] > 0.5:
                         edges.append([i, j])
-        elif method == 'gated_attn':
-            gates = info['gates'].squeeze(0).cpu().numpy()  # (n, n)
+        elif method == "gated_attn":
+            gates = info["gates"].squeeze(0).cpu().numpy()  # (n, n)
             for i in range(n):
                 for j in range(i + 1, n):
                     if gates[i][j] > 0.5 or gates[j][i] > 0.5:
@@ -99,11 +81,11 @@ def record_episode(comm, env, method):
         comm_rate = len(edges) / max(n * (n - 1) / 2, 1)
 
         frame = {
-            'agents': agent_positions,
-            'landmarks': landmark_positions,
-            'edges': edges,
-            'fiedler': round(fv, 4),
-            'comm_rate': round(comm_rate, 4),
+            "agents": agent_positions,
+            "landmarks": landmark_positions,
+            "edges": edges,
+            "fiedler": round(fv, 4),
+            "comm_rate": round(comm_rate, 4),
         }
         frames.append(frame)
 
@@ -114,30 +96,40 @@ def record_episode(comm, env, method):
 
 
 def main():
-    n_agents = 3
-    n_episodes = 5  # Record 5 episodes per method, pick the best
-    results_dir = 'results'
-    output_file = 'demo/trajectories.json'
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--results-dir", default="results")
+    parser.add_argument("--output", default="demo/trajectories.json")
+    parser.add_argument("--agents", type=int, default=3)
+    parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--episodes", type=int, default=5)
+    args = parser.parse_args()
 
-    env = MPEWrapper(n_agents=n_agents, max_cycles=25)
-    methods = ['commnet', 'ic3net', 'tarmac', 'gated_attn']
+    env = MPEWrapper(n_agents=args.agents, max_cycles=25, seed=args.seed)
+    methods = ["commnet", "ic3net", "tarmac", "gated_attn"]
 
     all_trajectories = {}
 
     for method in methods:
-        model_file = os.path.join(results_dir, f"{method}_seed0.pt")
-        if not os.path.exists(model_file):
+        model_file = (
+            Path(args.results_dir)
+            / "mpe"
+            / f"{args.agents}_agents"
+            / f"{method}_seed{args.seed}.pt"
+        )
+        legacy_model_file = Path(args.results_dir) / f"{method}_seed{args.seed}.pt"
+        if not model_file.exists() and legacy_model_file.exists():
+            model_file = legacy_model_file
+        if not model_file.exists():
             print(f"Skipping {method} — no model found at {model_file}")
             continue
 
         comm = build_comm_module(method, env.obs_dim, env.act_dim, env.n_agents)
-        comm.load_state_dict(torch.load(model_file, weights_only=True))
+        comm.load_state_dict(load_actor_state(model_file))
         comm.eval()
 
         best_frames = None
-        best_reward = float('-inf')
 
-        for ep in range(n_episodes):
+        for ep in range(args.episodes):
             torch.manual_seed(ep + 42)
             np.random.seed(ep + 42)
             frames = record_episode(comm, env, method)
@@ -150,12 +142,14 @@ def main():
         all_trajectories[method] = best_frames
         print(f"{method}: recorded {len(best_frames)} frames")
 
-    with open(output_file, 'w') as f:
-        json.dump(all_trajectories, f)
+    output_file = Path(args.output)
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+    with output_file.open("w", encoding="utf-8") as output:
+        json.dump(all_trajectories, output)
 
     print(f"\nTrajectories saved to {output_file}")
     env.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

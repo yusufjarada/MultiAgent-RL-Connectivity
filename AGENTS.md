@@ -20,7 +20,8 @@ src/
     tarmac.py     — Baseline: multi-head attention
     gated_attn.py — OURS: pairwise gating + attention + Fiedler constraint
   envs/
-    mpe_wrapper.py — MPE simple_spread environment wrapper
+    mpe_wrapper.py — MPE simple_spread regression environment
+    mujoco_point_mass.py — physics-backed, variable-team coverage environment
   training/
     ppo_trainer.py — PPO with centralized critic (CTDE)
   utils/
@@ -54,14 +55,15 @@ tests/
 python3 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 
-# Train (all 4 methods, 5 seeds, 500k timesteps)
-python scripts/train.py --method all --timesteps 500000 --seeds 0 1 2 3 4
+# Train in MuJoCo (all 4 methods, 5 seeds, 500k timesteps)
+python scripts/train.py --env mujoco --agents 5 --method all \
+  --timesteps 500000 --seeds 0 1 2 3 4
 
 # Generate figures
 python scripts/plot_results.py
 
 # Run tests
-python tests/test_graph.py && python tests/test_comm_modules.py
+python -m pytest
 
 # Compile paper
 cd paper && pdflatex main.tex && bibtex main && pdflatex main.tex && pdflatex main.tex

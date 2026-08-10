@@ -6,20 +6,36 @@ a message at every timestep, but receivers use attention to weight incoming
 messages by relevance rather than averaging equally.
 """
 
+import math
+from typing import Optional
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import math
+
+from src.comm.common import validate_observations
 
 
 class TarMAC(nn.Module):
-    def __init__(self, obs_dim: int, hidden_dim: int, msg_dim: int, act_dim: int,
-                 n_agents: int, n_heads: int = 4):
+    def __init__(
+        self,
+        obs_dim: int,
+        hidden_dim: int,
+        msg_dim: int,
+        act_dim: int,
+        n_agents: Optional[int] = None,
+        n_heads: int = 4,
+    ):
         super().__init__()
+        if n_agents is not None and n_agents < 2:
+            raise ValueError("n_agents must be at least 2")
+        if msg_dim % n_heads != 0:
+            raise ValueError("msg_dim must be divisible by n_heads")
+
+        self.obs_dim = obs_dim
         self.n_agents = n_agents
         self.n_heads = n_heads
         self.head_dim = msg_dim // n_heads
-        assert msg_dim % n_heads == 0, "msg_dim must be divisible by n_heads"
 
         # Observation encoder
         self.encoder = nn.Sequential(
@@ -43,7 +59,9 @@ class TarMAC(nn.Module):
         # Action head
         self.action_head = nn.Linear(hidden_dim, act_dim)
 
-    def forward(self, obs: torch.Tensor) -> tuple[torch.Tensor, dict]:
+    def forward(
+        self, obs: torch.Tensor, hard_gate: bool = False
+    ) -> tuple[torch.Tensor, dict]:
         """
         Args:
             obs: (batch, n_agents, obs_dim)
@@ -52,7 +70,7 @@ class TarMAC(nn.Module):
             action_logits: (batch, n_agents, act_dim)
             info: dict with attention weights, messages, comm stats
         """
-        B, N, _ = obs.shape
+        B, N = validate_observations(obs, self.obs_dim)
 
         h = self.encoder(obs)  # (B, N, hidden_dim)
 
@@ -72,7 +90,7 @@ class TarMAC(nn.Module):
 
         # Mask self-attention (don't attend to own message)
         self_mask = torch.eye(N, device=obs.device).bool().unsqueeze(0).unsqueeze(0)
-        attn_scores = attn_scores.masked_fill(self_mask, float('-inf'))
+        attn_scores = attn_scores.masked_fill(self_mask, float("-inf"))
 
         attn_weights = F.softmax(attn_scores, dim=-1)  # (B, heads, N, N)
 

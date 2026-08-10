@@ -4,14 +4,16 @@ Reimplements the JS logic in Python to confirm correctness.
 """
 
 import sys
-sys.path.insert(0, '/Users/yusufjarada/Desktop/marl-comms')
+
+sys.path.insert(0, "/Users/yusufjarada/Desktop/marl-comms")
 
 import numpy as np
-from src.utils.graph import fiedler_value, adjacency_to_laplacian
+
+from src.utils.graph import fiedler_value
 
 
 def distance(a, b):
-    return np.sqrt((a[0] - b[0])**2 + (a[1] - b[1])**2)
+    return np.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2)
 
 
 def test_broadcast_all_in_range_connected():
@@ -64,8 +66,14 @@ def test_broadcast_chain_connectivity():
     # Group A: agents 0-3 in a line, 80px apart
     # Group B: agents 4-7 in a line, 80px apart, but 400px away from group A
     positions = [
-        (100, 100), (180, 100), (260, 100), (340, 100),  # group A
-        (100, 500), (180, 500), (260, 500), (340, 500),  # group B
+        (100, 100),
+        (180, 100),
+        (260, 100),
+        (340, 100),  # group A
+        (100, 500),
+        (180, 500),
+        (260, 500),
+        (340, 500),  # group B
     ]
 
     edges = []
@@ -85,14 +93,20 @@ def test_broadcast_chain_connectivity():
 
     # Check cross-group: 400px apart, beyond COMM_RANGE
     dist_cross = distance(positions[0], positions[4])
-    assert adj[0][4] == 0, f"Agent 0 and 4 should NOT be connected (dist={dist_cross:.0f})"
+    assert adj[0][4] == 0, (
+        f"Agent 0 and 4 should NOT be connected (dist={dist_cross:.0f})"
+    )
 
     fv = fiedler_value(adj)
-    assert fv == 0.0 or abs(fv) < 0.01, f"Two separate groups should be disconnected, Fiedler = {fv}"
+    assert fv == 0.0 or abs(fv) < 0.01, (
+        f"Two separate groups should be disconnected, Fiedler = {fv}"
+    )
     print(f"PASS: Two separate groups — Fiedler = {fv:.4f} (disconnected as expected)")
-    print(f"      Group A edges: {[(i,j) for i,j in edges if i < 4 and j < 4]}")
-    print(f"      Group B edges: {[(i,j) for i,j in edges if i >= 4 and j >= 4]}")
-    print(f"      Cross-group edges: {[(i,j) for i,j in edges if (i < 4) != (j < 4)]}")
+    print(f"      Group A edges: {[(i, j) for i, j in edges if i < 4 and j < 4]}")
+    print(f"      Group B edges: {[(i, j) for i, j in edges if i >= 4 and j >= 4]}")
+    print(
+        f"      Cross-group edges: {[(i, j) for i, j in edges if (i < 4) != (j < 4)]}"
+    )
 
 
 def test_broadcast_single_cluster_all_connected():
@@ -107,7 +121,9 @@ def test_broadcast_single_cluster_all_connected():
             d = distance(positions[i], positions[j])
             max_dist = max(max_dist, d)
 
-    assert max_dist < COMM_RANGE, f"Max distance {max_dist:.0f} should be < {COMM_RANGE}"
+    assert max_dist < COMM_RANGE, (
+        f"Max distance {max_dist:.0f} should be < {COMM_RANGE}"
+    )
 
     edges = []
     for i in range(8):
@@ -122,7 +138,9 @@ def test_broadcast_single_cluster_all_connected():
         adj[i][j] = adj[j][i] = 1
 
     fv = fiedler_value(adj)
-    assert fv == 8.0 or abs(fv - 8.0) < 0.01, f"Complete K8 Fiedler should be 8, got {fv}"
+    assert fv == 8.0 or abs(fv - 8.0) < 0.01, (
+        f"Complete K8 Fiedler should be 8, got {fv}"
+    )
     print(f"PASS: Complete graph K8 — Fiedler = {fv:.3f}")
 
 
@@ -136,8 +154,14 @@ def test_connectivity_repair_logic():
 
     # Sparse initial edges (disconnected)
     positions = [
-        (100, 100), (180, 100), (260, 100), (340, 100),
-        (100, 300), (180, 300), (260, 300), (340, 300),
+        (100, 100),
+        (180, 100),
+        (260, 100),
+        (340, 100),
+        (100, 300),
+        (180, 300),
+        (260, 300),
+        (340, 300),
     ]
 
     all_pairs = []
@@ -173,7 +197,9 @@ def test_connectivity_repair_logic():
     print(f"After repair:  {len(current_edges)} edges, Fiedler = {fv:.4f}")
     assert fv >= THRESHOLD, f"Repair should achieve connectivity, Fiedler = {fv}"
     assert len(current_edges) < len(all_pairs), "Should use fewer edges than broadcast"
-    print(f"PASS: Connectivity repair — added {len(current_edges) - len(candidate_edges)} edges to reconnect")
+    print(
+        f"PASS: Connectivity repair — added {len(current_edges) - len(candidate_edges)} edges to reconnect"
+    )
 
 
 def test_gated_mode_can_disconnect():
@@ -189,8 +215,11 @@ def test_gated_mode_can_disconnect():
     for frame in range(500):
         gates = []
         for i in range(8):
-            g = sigmoid(math.sin(frame * 0.015 + i * 1.7) * 2.0
-                       + math.cos(frame * 0.008 + i * 3.1) * 1.5 + 0.5)
+            g = sigmoid(
+                math.sin(frame * 0.015 + i * 1.7) * 2.0
+                + math.cos(frame * 0.008 + i * 3.1) * 1.5
+                + 0.5
+            )
             gates.append(g > 0.5)
 
         open_count = sum(gates)
@@ -198,10 +227,12 @@ def test_gated_mode_can_disconnect():
             disconnected_frames += 1
 
     print(f"PASS: Gated mode — {disconnected_frames}/500 frames had <=2 open gates")
-    print(f"      This confirms gating CAN cause low connectivity (the problem we solve)")
+    print(
+        "      This confirms gating CAN cause low connectivity (the problem we solve)"
+    )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     print("=" * 60)
     print("Demo Logic Tests")
     print("=" * 60)
