@@ -25,7 +25,7 @@ def test_critic_is_permutation_invariant_and_team_size_agnostic():
     assert torch.allclose(original, permuted, atol=1e-6)
 
 
-@pytest.mark.parametrize("environment_name", ("mpe", "mujoco"))
+@pytest.mark.parametrize("environment_name", ("mpe", "mujoco", "mujoco_drone"))
 @pytest.mark.parametrize("n_agents", (2, 5))
 def test_ppo_smoke(environment_name, n_agents):
     env = make_env(environment_name, n_agents=n_agents, max_steps=5, seed=2)
@@ -53,7 +53,7 @@ def test_ppo_smoke(environment_name, n_agents):
         env.close()
 
 
-@pytest.mark.parametrize("environment_name", ("mpe", "mujoco"))
+@pytest.mark.parametrize("environment_name", ("mpe", "mujoco", "mujoco_drone"))
 def test_train_method_saves_namespaced_results_and_full_checkpoint(
     tmp_path, environment_name
 ):

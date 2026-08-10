@@ -24,6 +24,7 @@ src/
   envs/
     mpe_wrapper.py — MPE simple_spread regression environment
     mujoco_point_mass.py — physics-backed, variable-team coverage environment
+    mujoco_drone.py — simplified 3D drone coverage with velocity control
   training/
     ppo_trainer.py — PPO with centralized critic (CTDE)
   utils/
@@ -60,6 +61,9 @@ pip install -r requirements.txt
 # Train in MuJoCo (all 4 methods, 5 seeds, 500k timesteps)
 python scripts/train.py --env mujoco --agents 5 --method all \
   --timesteps 500000 --seeds 0 1 2 3 4
+
+# View the 3D drone environment (macOS interactive viewer)
+venv/bin/mjpython scripts/demo_mujoco.py --env drone --agents 5
 
 # Generate figures
 python scripts/plot_results.py

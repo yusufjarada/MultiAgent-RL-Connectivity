@@ -275,13 +275,17 @@ pip install -r requirements.txt
 python scripts/train.py --env mujoco --agents 5 --method commnet \
   --timesteps 200000 --seeds 0 1 2
 
+# Train the simplified three-dimensional drone task
+python scripts/train.py --env mujoco_drone --agents 5 --method commnet \
+  --timesteps 200000 --seeds 0 1 2
+
 # Retain MPE as a regression benchmark
 python scripts/train.py --env mpe --method all \
   --timesteps 200000 --seeds 0 1 2
 
 # Options
 #   --method:   commnet | ic3net | tarmac | gated_attn | all
-#   --env:      mpe | mujoco
+#   --env:      mpe | mujoco | mujoco_drone
 #   --agents:   number of agents (default: 3)
 #   --timesteps: total environment steps (default: 200000)
 #   --seeds:    random seeds for reproducibility
@@ -341,7 +345,8 @@ marl-comms/
 │   │   └── gated_attn.py    # OURS: pairwise gating + attention + Fiedler constraint
 │   ├── envs/
 │   │   ├── mpe_wrapper.py          # MPE regression environment
-│   │   └── mujoco_point_mass.py    # Physics-backed coverage environment
+│   │   ├── mujoco_point_mass.py    # Planar coverage environment
+│   │   └── mujoco_drone.py         # Simplified 3D drone environment
 │   ├── training/
 │   │   ├── checkpoint.py            # Versioned atomic checkpoints
 │   │   └── ppo_trainer.py           # Variable-team PPO trainer
@@ -349,6 +354,7 @@ marl-comms/
 │       └── graph.py          # Graph Laplacian, Fiedler value, connectivity penalty
 ├── scripts/
 │   ├── train.py              # Training script (CLI)
+│   ├── demo_mujoco.py        # Interactive environment viewer
 │   └── plot_results.py       # Result visualization
 ├── demo/
 │   ├── index.html            # Interactive browser demo
@@ -367,14 +373,16 @@ marl-comms/
 
 ---
 
-## Environment: MuJoCo Point-Mass Coverage
+## Environments: MuJoCo Coverage
 
 The primary development environment is a configurable MuJoCo scene with `N`
 planar point-mass robots and `N` landmarks. It adds physical dynamics,
 collisions, randomized layouts, 3D rendering, fixed-width local observations,
 and a distance-limited physical communication graph. See the
 [environment specification](docs/mujoco_environment.md) for the complete
-observation, action, reward, and graph definitions.
+observation, action, reward, and graph definitions. A simplified 3D drone task
+is also available through `--env mujoco_drone`; it uses xyz velocity commands
+and dotted box-shaped goal regions while intentionally omitting aerodynamics.
 
 ## Regression Environment: MPE Simple Spread
 

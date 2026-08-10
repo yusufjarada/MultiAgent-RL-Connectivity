@@ -4,7 +4,7 @@ from typing import Optional
 
 from src.envs.base import MultiAgentEnv
 
-ENVIRONMENTS = ("mpe", "mujoco")
+ENVIRONMENTS = ("mpe", "mujoco", "mujoco_drone")
 
 
 def make_env(
@@ -31,6 +31,15 @@ def make_env(
         return MujocoPointMassEnv(
             n_agents=n_agents,
             max_steps=max_steps if max_steps is not None else 100,
+            seed=seed,
+            render_mode=render_mode,
+        )
+    if name == "mujoco_drone":
+        from src.envs.mujoco_drone import MujocoDroneEnv
+
+        return MujocoDroneEnv(
+            n_agents=n_agents,
+            max_steps=max_steps if max_steps is not None else 150,
             seed=seed,
             render_mode=render_mode,
         )
