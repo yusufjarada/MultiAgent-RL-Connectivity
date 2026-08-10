@@ -4,7 +4,9 @@
 
 A research project for AAE 590 (Multi-Agent Autonomy and Control) at Purdue, taught by Prof. Shaoshuai Mou. The topic is learned communication in multi-agent reinforcement learning (MARL) with a connectivity constraint from algebraic graph theory.
 
-The one-sentence pitch: agents learn when to talk and who to listen to, with a mathematical guarantee (Fiedler value) that the team never loses connectivity.
+The one-sentence research objective: agents learn when to talk and who to listen to while minimizing communication cost and satisfying a graph-connectivity requirement measured by the Fiedler value.
+
+Publication claims and the living prior-work audit are tracked in `docs/publication_plan.md`. Read that file before describing novelty or claiming a connectivity guarantee. The current soft Fiedler penalty encourages connectivity but does not, by itself, prove that the team never loses connectivity.
 
 ## Who
 
